@@ -1,0 +1,4 @@
+github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
+github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
+github.com/yottta/go-core v0.0.13 h1:0A/I0iz2lz9q5ZZUM7gvE9lUPhRHK8ksL8l+xBITFUI=
+github.com/yottta/go-core v0.0.13/go.mod h1:YepEI/40uY1hbcnS0F4Zc1z7KkSir39DE3haD2FVH6I=
