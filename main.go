@@ -13,6 +13,8 @@ import (
 	"github.com/yottta/truewatcher/sdk"
 )
 
+// application represents the minimal set of fields that are needed to be decoded from the "app.query"
+// TrueNAS method to be able to call the update of the application.
 type application struct {
 	Name             string `json:"name"`
 	Id               string `json:"id"`
@@ -21,6 +23,7 @@ type application struct {
 	Version          string `json:"version"`
 }
 
+// list is a generic list type for the TrueNAS query responses.
 type list[T any] struct {
 	Entries []T `json:"result"`
 }
@@ -66,6 +69,57 @@ func main() {
 	slog.Info("appwatcher stopped")
 }
 
+// connect uses the `TRUENAS_URL` environment variable to create a new websocket client.
+func connect() (*sdk.Client, func(), error) {
+	url := os.Getenv("TRUENAS_URL")
+	closer := func() {}
+	cl, err := sdk.NewClientWithCallback(url, false, func(i int64, i2 int64, m map[string]interface{}) {
+		slog.With(
+			"i", i,
+			"i2", i2,
+			"m", m,
+		).Info("job received")
+	})
+	if err != nil {
+		return nil, closer, err
+	}
+	closer = func() {
+		_ = cl.Close()
+	}
+	if err := login(cl); err != nil {
+		slog.With("error", err).Error("failed to login")
+		return cl, closer, err
+	}
+	return cl, closer, nil
+}
+
+// login uses the given TrueNAS client and tries to login.
+// To be able to properly authenticate, this needs one of the following combination set of environment variables:
+//   - `TRUENAS_USERNAME` and `TRUENAS_PASSWORD`
+//   - `TRUENAS_API_KEY`
+func login(cl *sdk.Client) error {
+	username := os.Getenv("TRUENAS_USERNAME")
+	password := os.Getenv("TRUENAS_PASSWORD")
+	apiKey := os.Getenv("TRUENAS_API_KEY")
+	if err := cl.Login(username, password, apiKey); err != nil {
+		return err
+	}
+	return cl.SubscribeToJobs()
+}
+
+// ping returns false if it failed to ping
+func ping(cl *sdk.Client) bool {
+	resp, err := cl.Ping()
+	if err != nil {
+		slog.With("error", err).Error("failed to ping")
+		return false
+	}
+	slog.With("result", resp).Debug("ping result")
+	return true
+}
+
+// queryAndUpgrade gets the applications that are reported with and upgrade available and calls
+// upgrade on the TrueNAS client.
 func queryAndUpgrade(cl *sdk.Client) {
 	slog.Debug("looking for apps to update")
 	apps, err := queryApps(cl)
@@ -103,29 +157,7 @@ func queryAndUpgrade(cl *sdk.Client) {
 	}
 }
 
-func connect() (*sdk.Client, func(), error) {
-	url := os.Getenv("TRUENAS_URL")
-	closer := func() {}
-	cl, err := sdk.NewClientWithCallback(url, false, func(i int64, i2 int64, m map[string]interface{}) {
-		slog.With(
-			"i", i,
-			"i2", i2,
-			"m", m,
-		).Info("job received")
-	})
-	if err != nil {
-		return nil, closer, err
-	}
-	closer = func() {
-		_ = cl.Close()
-	}
-	if err := login(cl); err != nil {
-		slog.With("error", err).Error("failed to login")
-		return cl, closer, err
-	}
-	return cl, closer, nil
-}
-
+// queryApps gets only the applications with `upgrade_available=true` and returns an unmarshalled list.
 func queryApps(cl *sdk.Client) (*list[application], error) {
 	request := []any{
 		[]any{
@@ -146,6 +178,7 @@ func queryApps(cl *sdk.Client) (*list[application], error) {
 	return &ret, nil
 }
 
+// upgradeApp upgrades the application if there is an upgrade available for it.
 func upgradeApp(cl *sdk.Client, app application) (bool, error) {
 	if !app.UpgradeAvailable {
 		return false, nil
@@ -162,25 +195,4 @@ func upgradeApp(cl *sdk.Client, app application) (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-func login(cl *sdk.Client) error {
-	username := os.Getenv("TRUENAS_USERNAME")
-	password := os.Getenv("TRUENAS_PASSWORD")
-	apiKey := os.Getenv("TRUENAS_API_KEY")
-	if err := cl.Login(username, password, apiKey); err != nil {
-		return err
-	}
-	return cl.SubscribeToJobs()
-}
-
-// ping returns false if it failed to ping
-func ping(cl *sdk.Client) bool {
-	resp, err := cl.Ping()
-	if err != nil {
-		slog.With("error", err).Error("failed to ping")
-		return false
-	}
-	slog.With("result", resp).Debug("ping result")
-	return true
 }
