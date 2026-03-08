@@ -1,0 +1,7 @@
+FROM alpine:latest
+ARG TARGETPLATFORM
+
+WORKDIR /root/
+COPY $TARGETPLATFORM/truewatcher ./app
+
+CMD ["./app"]
