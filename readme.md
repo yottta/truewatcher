@@ -60,7 +60,7 @@ export TRUENAS_API_KEY="<the token you copied above>"
 ```
 
 ### Use the provided docker image
-In case you want to run this in your Portainer or Dockage instance, you can use the already existing and up to date docker image.
+In case you want to run this in your Portainer or Dockage instance, you can use the already existing and up to date [docker image](https://hub.docker.com/r/yottta/truewatcher).
 
 ## TODOs:
 * Add filters to be able to watch only specific applications.
