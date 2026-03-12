@@ -66,11 +66,11 @@ export TRUENAS_API_KEY="<the token you copied above>"
 * Filtering by application name
   * Whitelisting (env var: `APP_WHITELIST`; default: "")
     * Updates only the specified applications. When not specified, filtering for this is disabled.
-      The value is a comma separated string with no spaces (eg: "Portainer,SeaweedFS,immich").
+      The value is a comma separated string (eg: "Portainer,SeaweedFS,immich").
       All the names are lower cased and checked accordingly.
   * Blacklisting (env var: `APP_BLACKLIST`; default: "")
     * Does not update the specified application names. When not specified, filtering for this is disabled.
-      The value is a comma separated string with no spaces (eg: "Portainer,SeaweedFS,immich").
+      The value is a comma separated string (eg: "Portainer ,SeaweedFS,immich").
       All the names are lower cased and checked accordingly.
   * Both options can be used together, and the first one that excludes an application will filter it out.
   * None can be used which will allow upgrading any application that has an upgrade available.

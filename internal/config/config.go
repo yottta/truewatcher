@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"log/slog"
@@ -11,15 +11,16 @@ import (
 var defaultCheckDelay = 6 * time.Hour
 
 type Config struct {
-	URL        string
-	Username   string
-	Password   string
-	APIKey     string
-	CheckDelay time.Duration
-	filtering  filter
+	URL         string
+	Username    string
+	Password    string
+	APIKey      string
+	CheckDelay  time.Duration
+	Whitelisted []string
+	Blacklisted []string
 }
 
-func loadConfig() Config {
+func LoadConfig() Config {
 	ret := Config{
 		URL:      env.String("TRUENAS_URL"),
 		Username: env.String("TRUENAS_USERNAME"),
@@ -35,9 +36,11 @@ func loadConfig() Config {
 	}
 	ret.CheckDelay = delay
 	// parse filters
-	ret.filtering = filterChain{
-		whitelistFilter(strings.Split(env.String("APP_WHITELIST"), ",")),
-		blacklistFilter(strings.Split(env.String("APP_BLACKLIST"), ",")),
+	if wl := strings.TrimSpace(env.String("APP_WHITELIST")); wl != "" {
+		ret.Whitelisted = strings.Split(wl, ",")
+	}
+	if bl := strings.TrimSpace(env.String("APP_BLACKLIST")); bl != "" {
+		ret.Whitelisted = strings.Split(bl, ",")
 	}
 
 	return ret
