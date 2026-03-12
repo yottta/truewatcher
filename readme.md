@@ -59,10 +59,25 @@ export TRUENAS_URL="<your url>"
 export TRUENAS_API_KEY="<the token you copied above>"
 ```
 
+### Other available configurations
+* Delay between checks (env var: `CHECK_DELAY`; default: "6h")
+  * Control how often the applications are checked for available updates.
+    It gets a **duration** in [golang format](https://pkg.go.dev/time#ParseDuration) (eg: "1h", "5s", "2h45m", etc).
+* Filtering by application name
+  * Whitelisting (env var: `APP_WHITELIST`; default: "")
+    * Updates only the specified applications. When not specified, filtering for this is disabled.
+      The value is a comma separated string with no spaces (eg: "Portainer,SeaweedFS,immich").
+      All the names are lower cased and checked accordingly.
+  * Blacklisting (env var: `APP_BLACKLIST`; default: "")
+    * Does not update the specified application names. When not specified, filtering for this is disabled.
+      The value is a comma separated string with no spaces (eg: "Portainer,SeaweedFS,immich").
+      All the names are lower cased and checked accordingly.
+  * Both options can be used together, and the first one that excludes an application will filter it out.
+  * None can be used which will allow upgrading any application that has an upgrade available.
+
 ### Use the provided docker image
 In case you want to run this in your Portainer or Dockage instance, you can use the already existing and up to date [docker image](https://hub.docker.com/r/yottta/truewatcher).
 
 ## TODOs:
-* Add filters to be able to watch only specific applications.
 * Actually plug into the events, still have to figure out what is the privilege necessary to receive events
   for a least-privileged token.
