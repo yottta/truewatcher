@@ -37,10 +37,18 @@ func LoadConfig() Config {
 	ret.CheckDelay = delay
 	// parse filters
 	if wl := strings.TrimSpace(env.String("APP_WHITELIST")); wl != "" {
-		ret.Whitelisted = strings.Split(wl, ",")
+		vals := strings.Split(wl, ",")
+		ret.Whitelisted = make([]string, 0, len(vals))
+		for _, val := range vals {
+			ret.Whitelisted = append(ret.Whitelisted, strings.TrimSpace(strings.ToLower(val)))
+		}
 	}
 	if bl := strings.TrimSpace(env.String("APP_BLACKLIST")); bl != "" {
-		ret.Whitelisted = strings.Split(bl, ",")
+		vals := strings.Split(bl, ",")
+		ret.Blacklisted = make([]string, 0, len(vals))
+		for _, val := range vals {
+			ret.Blacklisted = append(ret.Blacklisted, strings.TrimSpace(strings.ToLower(val)))
+		}
 	}
 
 	return ret

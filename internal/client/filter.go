@@ -31,7 +31,7 @@ func WhitelistFilter(allowed []string) FilterFunc {
 	}
 	mapped := make(map[string]struct{}, len(allowed))
 	for _, s := range allowed {
-		mapped[strings.TrimSpace(strings.ToLower(s))] = struct{}{}
+		mapped[s] = struct{}{}
 	}
 	return func(a Application) bool {
 		_, ok := mapped[strings.ToLower(a.Name)]
@@ -42,7 +42,7 @@ func WhitelistFilter(allowed []string) FilterFunc {
 func BlacklistFilter(allowed []string) FilterFunc {
 	mapped := make(map[string]struct{}, len(allowed))
 	for _, s := range allowed {
-		mapped[strings.TrimSpace(strings.ToLower(s))] = struct{}{}
+		mapped[s] = struct{}{}
 	}
 	return func(a Application) bool {
 		_, ok := mapped[strings.ToLower(a.Name)]

@@ -52,16 +52,18 @@ func TestWhitelistFilter(t *testing.T) {
 			expected:  true,
 		},
 		{
-			name:      "case does not matter",
+			// The caller is responsible of cleaning up the values
+			name:      "case does matter",
 			whitelist: []string{"App1"},
 			app:       Application{Name: "app1"},
-			expected:  true,
+			expected:  false,
 		},
 		{
-			name:      "spaces does not matter",
+			// The caller is responsible of cleaning up the values
+			name:      "spaces does matter",
 			whitelist: []string{"  app1     "},
 			app:       Application{Name: "app1"},
-			expected:  true,
+			expected:  false,
 		},
 	}
 
@@ -127,16 +129,18 @@ func TestBlacklistFilter(t *testing.T) {
 			expected:  false,
 		},
 		{
-			name:      "case does not matter",
+			// The caller is responsible of cleaning up the values
+			name:      "case does matter",
 			blacklist: []string{"App1"},
 			app:       Application{Name: "app1"},
-			expected:  false,
+			expected:  true,
 		},
 		{
-			name:      "spaces does not matter",
+			// The caller is responsible of cleaning up the values
+			name:      "spaces does matter",
 			blacklist: []string{"   app1    "},
 			app:       Application{Name: "app1"},
-			expected:  false,
+			expected:  true,
 		},
 	}
 
