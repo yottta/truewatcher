@@ -9,6 +9,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main ./cmd/truewatcher
 
 FROM alpine:latest
 
+# This enables users to use TZ environment variable for the container to match the desirerd timezone
+RUN apk add tzdata
+
 WORKDIR /root/
 COPY --from=builder /app/main .
 

@@ -1,6 +1,9 @@
 FROM alpine:latest
 ARG TARGETPLATFORM
 
+# This enables users to use TZ environment variable for the container to match the desirerd timezone
+RUN apk add tzdata
+
 WORKDIR /root/
 COPY $TARGETPLATFORM/truewatcher ./app
 
