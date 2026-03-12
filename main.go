@@ -30,8 +30,9 @@ type list[T any] struct {
 
 func main() {
 	logging.Setup()
+	cfg := loadConfig()
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT)
-	cl, closer, err := connect()
+	cl, closer, err := connect(cfg)
 	defer func() {
 		closer() // done this way because 'closer' can be updated later during refreshing the connection
 	}()
@@ -50,15 +51,15 @@ func main() {
 					// ensure that the old connection is cleaned up
 					closer()
 					// reconnect...
-					cl, closer, err = connect()
+					cl, closer, err = connect(cfg)
 					if err != nil {
 						slog.With("error", err).Error("error reconnecting")
 						continue
 					}
 					slog.Info("reconnected")
 				}
-			case <-time.After(6 * time.Hour):
-				queryAndUpgrade(cl)
+			case <-time.After(cfg.CheckDelay):
+				queryAndUpgrade(cl, cfg.filtering)
 			}
 		}
 	}()
@@ -70,10 +71,9 @@ func main() {
 }
 
 // connect uses the `TRUENAS_URL` environment variable to create a new websocket client.
-func connect() (*sdk.Client, func(), error) {
-	url := os.Getenv("TRUENAS_URL")
+func connect(cfg Config) (*sdk.Client, func(), error) {
 	closer := func() {}
-	cl, err := sdk.NewClientWithCallback(url, false, func(i int64, i2 int64, m map[string]interface{}) {
+	cl, err := sdk.NewClientWithCallback(cfg.URL, false, func(i int64, i2 int64, m map[string]interface{}) {
 		slog.With(
 			"i", i,
 			"i2", i2,
@@ -86,22 +86,16 @@ func connect() (*sdk.Client, func(), error) {
 	closer = func() {
 		_ = cl.Close()
 	}
-	if err := login(cl); err != nil {
+	if err := login(cl, cfg); err != nil {
 		slog.With("error", err).Error("failed to login")
 		return cl, closer, err
 	}
 	return cl, closer, nil
 }
 
-// login uses the given TrueNAS client and tries to login.
-// To be able to properly authenticate, this needs one of the following combination set of environment variables:
-//   - `TRUENAS_USERNAME` and `TRUENAS_PASSWORD`
-//   - `TRUENAS_API_KEY`
-func login(cl *sdk.Client) error {
-	username := os.Getenv("TRUENAS_USERNAME")
-	password := os.Getenv("TRUENAS_PASSWORD")
-	apiKey := os.Getenv("TRUENAS_API_KEY")
-	if err := cl.Login(username, password, apiKey); err != nil {
+// login uses the given TrueNAS client.
+func login(cl *sdk.Client, cfg Config) error {
+	if err := cl.Login(cfg.Username, cfg.Password, cfg.APIKey); err != nil {
 		return err
 	}
 	return cl.SubscribeToJobs()
@@ -120,7 +114,7 @@ func ping(cl *sdk.Client) bool {
 
 // queryAndUpgrade gets the applications that are reported with and upgrade available and calls
 // upgrade on the TrueNAS client.
-func queryAndUpgrade(cl *sdk.Client) {
+func queryAndUpgrade(cl *sdk.Client, f filter) {
 	slog.Debug("looking for apps to update")
 	apps, err := queryApps(cl)
 	if err != nil {
@@ -131,10 +125,10 @@ func queryAndUpgrade(cl *sdk.Client) {
 	for _, app := range apps.Entries {
 		slog.With(
 			"app_name", app.Name,
-			"app_id", app.Name,
+			"app_id", app.Id,
 			"upgrade_available", app.UpgradeAvailable,
 		).Debug("app returned")
-		ok, err := upgradeApp(cl, app)
+		ok, err := upgradeApp(cl, app, f)
 		if err != nil {
 			slog.With(
 				"app_name", app.Name,
@@ -179,8 +173,16 @@ func queryApps(cl *sdk.Client) (*list[application], error) {
 }
 
 // upgradeApp upgrades the application if there is an upgrade available for it.
-func upgradeApp(cl *sdk.Client, app application) (bool, error) {
+func upgradeApp(cl *sdk.Client, app application, f filter) (bool, error) {
 	if !app.UpgradeAvailable {
+		return false, nil
+	}
+	if !f.allowed(app) {
+		slog.With(
+			"app_name", app.Name,
+			"app_id", app.Id,
+			"upgrade_available", app.UpgradeAvailable,
+		).Info("app filtered out")
 		return false, nil
 	}
 	request := []any{
