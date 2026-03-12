@@ -57,6 +57,12 @@ func TestWhitelistFilter(t *testing.T) {
 			app:       Application{Name: "app1"},
 			expected:  true,
 		},
+		{
+			name:      "spaces does not matter",
+			whitelist: []string{"  app1     "},
+			app:       Application{Name: "app1"},
+			expected:  true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -123,6 +129,12 @@ func TestBlacklistFilter(t *testing.T) {
 		{
 			name:      "case does not matter",
 			blacklist: []string{"App1"},
+			app:       Application{Name: "app1"},
+			expected:  false,
+		},
+		{
+			name:      "spaces does not matter",
+			blacklist: []string{"   app1    "},
 			app:       Application{Name: "app1"},
 			expected:  false,
 		},
