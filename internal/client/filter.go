@@ -1,31 +1,31 @@
-package main
+package client
 
 import "strings"
 
-type filter interface {
-	allowed(application) bool
+type Filter interface {
+	Allowed(Application) bool
 }
 
-type filterChain []filter
+type FilterChain []Filter
 
-func (m filterChain) allowed(a application) bool {
+func (m FilterChain) Allowed(a Application) bool {
 	for _, f := range m {
-		if !f.allowed(a) {
+		if !f.Allowed(a) {
 			return false
 		}
 	}
 	return true
 }
 
-type filterFunc func(application) bool
+type FilterFunc func(Application) bool
 
-func (f filterFunc) allowed(wr application) bool {
+func (f FilterFunc) Allowed(wr Application) bool {
 	return f(wr)
 }
 
-func whitelistFilter(allowed []string) filterFunc {
+func WhitelistFilter(allowed []string) FilterFunc {
 	if len(allowed) == 0 {
-		return func(a application) bool {
+		return func(a Application) bool {
 			return true // Allow everything
 		}
 	}
@@ -33,18 +33,18 @@ func whitelistFilter(allowed []string) filterFunc {
 	for _, s := range allowed {
 		mapped[strings.ToLower(s)] = struct{}{}
 	}
-	return func(a application) bool {
+	return func(a Application) bool {
 		_, ok := mapped[strings.ToLower(a.Name)]
 		return ok
 	}
 }
 
-func blacklistFilter(allowed []string) filterFunc {
+func BlacklistFilter(allowed []string) FilterFunc {
 	mapped := make(map[string]struct{}, len(allowed))
 	for _, s := range allowed {
 		mapped[strings.ToLower(s)] = struct{}{}
 	}
-	return func(a application) bool {
+	return func(a Application) bool {
 		_, ok := mapped[strings.ToLower(a.Name)]
 		return !ok
 	}

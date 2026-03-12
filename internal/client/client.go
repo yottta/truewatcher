@@ -1,79 +1,62 @@
-package main
+package client
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/yottta/go-core/logging"
-	"github.com/yottta/truewatcher/sdk"
+	"github.com/yottta/truewatcher/internal/client/sdk"
 )
 
-// application represents the minimal set of fields that are needed to be decoded from the "app.query"
-// TrueNAS method to be able to call the update of the application.
-type application struct {
-	Name             string `json:"name"`
-	Id               string `json:"id"`
-	UpgradeAvailable bool   `json:"upgrade_available"`
-	LatestVersion    string `json:"latest_version"`
-	Version          string `json:"version"`
+type Client struct {
+	URL        string
+	Username   string
+	Password   string
+	APIKey     string
+	CheckDelay time.Duration
+	Filtering  Filter
 }
 
-// list is a generic list type for the TrueNAS query responses.
-type list[T any] struct {
-	Entries []T `json:"result"`
-}
-
-func main() {
-	logging.Setup()
-	cfg := loadConfig()
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT)
-	cl, closer, err := connect(cfg)
+func (c *Client) MonitorApps(ctx context.Context) error {
+	cl, closer, err := c.connect()
 	defer func() {
 		closer() // done this way because 'closer' can be updated later during refreshing the connection
 	}()
 	if err != nil {
-		slog.With("error", err).Error("failed on initial connection")
-		os.Exit(1)
+		return err
 	}
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				slog.Info("app watcher stopped")
-				return
-			case <-time.After(30 * time.Second):
-				if !ping(cl) {
-					// ensure that the old connection is cleaned up
-					closer()
-					// reconnect...
-					cl, closer, err = connect(cfg)
-					if err != nil {
-						slog.With("error", err).Error("error reconnecting")
-						continue
-					}
-					slog.Info("reconnected")
-				}
-			case <-time.After(cfg.CheckDelay):
-				queryAndUpgrade(cl, cfg.filtering)
+	for {
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); !errors.Is(err, context.Canceled) {
+				return err
 			}
+			return nil
+		case <-time.After(30 * time.Second):
+			if !c.ping(cl) {
+				// ensure that the old connection is cleaned up
+				closer()
+				// reconnect...
+				cl, closer, err = c.connect()
+				if err != nil {
+					slog.With("error", err).Error("error reconnecting")
+					continue
+				}
+				slog.Info("reconnected")
+			}
+		case <-time.After(c.CheckDelay):
+			c.queryAndUpgrade(cl)
 		}
-	}()
-
-	defer stop()
-	slog.With("version", formattedVersion()).Info("appwatcher started. ctrl+c to shut it down")
-	<-ctx.Done()
-	slog.Info("appwatcher stopped")
+	}
 }
 
-// connect uses the `TRUENAS_URL` environment variable to create a new websocket client.
-func connect(cfg Config) (*sdk.Client, func(), error) {
+func (c *Client) connect() (*sdk.Client, func(), error) {
 	closer := func() {}
-	cl, err := sdk.NewClientWithCallback(cfg.URL, false, func(i int64, i2 int64, m map[string]interface{}) {
+	cl, err := sdk.NewClientWithCallback(c.URL, false, func(i int64, i2 int64, m map[string]interface{}) {
+		// NOTE: This is here for experimentation: It's under investigation on how to avoid querying and instead
+		// act based on the received notifications.
 		slog.With(
 			"i", i,
 			"i2", i2,
@@ -86,7 +69,7 @@ func connect(cfg Config) (*sdk.Client, func(), error) {
 	closer = func() {
 		_ = cl.Close()
 	}
-	if err := login(cl, cfg); err != nil {
+	if err := c.login(cl); err != nil {
 		slog.With("error", err).Error("failed to login")
 		return cl, closer, err
 	}
@@ -94,15 +77,15 @@ func connect(cfg Config) (*sdk.Client, func(), error) {
 }
 
 // login uses the given TrueNAS client.
-func login(cl *sdk.Client, cfg Config) error {
-	if err := cl.Login(cfg.Username, cfg.Password, cfg.APIKey); err != nil {
+func (c *Client) login(cl *sdk.Client) error {
+	if err := cl.Login(c.Username, c.Password, c.APIKey); err != nil {
 		return err
 	}
 	return cl.SubscribeToJobs()
 }
 
 // ping returns false if it failed to ping
-func ping(cl *sdk.Client) bool {
+func (c *Client) ping(cl *sdk.Client) bool {
 	resp, err := cl.Ping()
 	if err != nil {
 		slog.With("error", err).Error("failed to ping")
@@ -114,9 +97,9 @@ func ping(cl *sdk.Client) bool {
 
 // queryAndUpgrade gets the applications that are reported with and upgrade available and calls
 // upgrade on the TrueNAS client.
-func queryAndUpgrade(cl *sdk.Client, f filter) {
+func (c *Client) queryAndUpgrade(cl *sdk.Client) {
 	slog.Debug("looking for apps to update")
-	apps, err := queryApps(cl)
+	apps, err := c.queryApps(cl)
 	if err != nil {
 		slog.With("error", err).Error("failed to query apps")
 		return
@@ -128,7 +111,7 @@ func queryAndUpgrade(cl *sdk.Client, f filter) {
 			"app_id", app.Id,
 			"upgrade_available", app.UpgradeAvailable,
 		).Debug("app returned")
-		ok, err := upgradeApp(cl, app, f)
+		ok, err := c.upgradeApp(cl, app)
 		if err != nil {
 			slog.With(
 				"app_name", app.Name,
@@ -152,7 +135,7 @@ func queryAndUpgrade(cl *sdk.Client, f filter) {
 }
 
 // queryApps gets only the applications with `upgrade_available=true` and returns an unmarshalled list.
-func queryApps(cl *sdk.Client) (*list[application], error) {
+func (c *Client) queryApps(cl *sdk.Client) (*List[Application], error) {
 	request := []any{
 		[]any{
 			[]any{"upgrade_available", "=", true},
@@ -165,7 +148,7 @@ func queryApps(cl *sdk.Client) (*list[application], error) {
 	if err != nil {
 		return nil, err
 	}
-	var ret list[application]
+	var ret List[Application]
 	if err := json.Unmarshal(resp, &ret); err != nil {
 		return nil, err
 	}
@@ -173,11 +156,11 @@ func queryApps(cl *sdk.Client) (*list[application], error) {
 }
 
 // upgradeApp upgrades the application if there is an upgrade available for it.
-func upgradeApp(cl *sdk.Client, app application, f filter) (bool, error) {
+func (c *Client) upgradeApp(cl *sdk.Client, app Application) (bool, error) {
 	if !app.UpgradeAvailable {
 		return false, nil
 	}
-	if !f.allowed(app) {
+	if !c.Filtering.Allowed(app) {
 		slog.With(
 			"app_name", app.Name,
 			"app_id", app.Id,
