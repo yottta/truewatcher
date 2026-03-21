@@ -36,6 +36,7 @@ func main() {
 	if len(cfg.Blacklisted) > 0 {
 		l = l.With("blacklisted_apps", cfg.Blacklisted)
 	}
+	l = l.With("check_delay", cfg.CheckDelay)
 	l.Info("started")
 	if err := cl.MonitorApps(ctx); err != nil {
 		slog.With("error", err).Error("error monitoring the applications")

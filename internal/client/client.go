@@ -27,6 +27,8 @@ func (c *Client) MonitorApps(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	t := time.NewTicker(c.CheckDelay)
+	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -46,7 +48,7 @@ func (c *Client) MonitorApps(ctx context.Context) error {
 				}
 				slog.Info("reconnected")
 			}
-		case <-time.After(c.CheckDelay):
+		case <-t.C:
 			c.queryAndUpgrade(cl)
 		}
 	}
