@@ -39,8 +39,8 @@ func main() {
 	l = l.With("check_delay", cfg.CheckDelay.String())
 	l.Info("started")
 	if err := cl.MonitorApps(ctx); err != nil {
-		slog.With("error", err).Error("error monitoring the applications")
+		l.With("error", err).Error("error monitoring the applications")
 		os.Exit(1)
 	}
-	slog.Info("stopped")
+	l.Info("stopped")
 }

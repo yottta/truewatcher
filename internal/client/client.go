@@ -104,13 +104,14 @@ func (c *Client) queryAndUpgrade(cl *sdk.Client) {
 			"app_name", app.Name,
 			"app_id", app.Id,
 			"upgrade_available", app.UpgradeAvailable,
+			"current_version", app.Version,
+			"latest_version", app.LatestVersion,
 		).Debug("app returned")
 		ok, err := c.upgradeApp(cl, app)
 		if err != nil {
 			slog.With(
 				"app_name", app.Name,
 				"app_id", app.Name,
-				"upgrade_available", app.UpgradeAvailable,
 				"current_version", app.Version,
 				"latest_version", app.LatestVersion,
 				"error", err,
@@ -120,7 +121,6 @@ func (c *Client) queryAndUpgrade(cl *sdk.Client) {
 			slog.With(
 				"app_name", app.Name,
 				"app_id", app.Name,
-				"upgrade_available", app.UpgradeAvailable,
 				"from_version", app.Version,
 				"to_version", app.LatestVersion,
 			).Info("app upgraded")
