@@ -56,15 +56,7 @@ func (c *Client) MonitorApps(ctx context.Context) error {
 
 func (c *Client) connect() (*sdk.Client, func(), error) {
 	closer := func() {}
-	cl, err := sdk.NewClientWithCallback(c.URL, false, func(i int64, i2 int64, m map[string]interface{}) {
-		// NOTE: This is here for experimentation: It's under investigation on how to avoid querying and instead
-		// act based on the received notifications.
-		slog.With(
-			"i", i,
-			"i2", i2,
-			"m", m,
-		).Info("job received")
-	})
+	cl, err := sdk.NewClient(c.URL, false)
 	if err != nil {
 		return nil, closer, err
 	}
@@ -112,13 +104,14 @@ func (c *Client) queryAndUpgrade(cl *sdk.Client) {
 			"app_name", app.Name,
 			"app_id", app.Id,
 			"upgrade_available", app.UpgradeAvailable,
+			"current_version", app.Version,
+			"latest_version", app.LatestVersion,
 		).Debug("app returned")
 		ok, err := c.upgradeApp(cl, app)
 		if err != nil {
 			slog.With(
 				"app_name", app.Name,
 				"app_id", app.Name,
-				"upgrade_available", app.UpgradeAvailable,
 				"current_version", app.Version,
 				"latest_version", app.LatestVersion,
 				"error", err,
@@ -128,7 +121,6 @@ func (c *Client) queryAndUpgrade(cl *sdk.Client) {
 			slog.With(
 				"app_name", app.Name,
 				"app_id", app.Name,
-				"upgrade_available", app.UpgradeAvailable,
 				"from_version", app.Version,
 				"to_version", app.LatestVersion,
 			).Info("app upgraded")

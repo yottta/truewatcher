@@ -31,7 +31,12 @@ func LoadConfig() Config {
 	rawCheckDelay := env.StringWithDefault("CHECK_DELAY", defaultCheckDelay.String())
 	delay, err := time.ParseDuration(rawCheckDelay)
 	if err != nil {
-		slog.With("given_value", rawCheckDelay).With("default", defaultCheckDelay.String()).With("error", err).Warn("failed to parse the given value for CHECK_DELAY. Fallback to default")
+		slog.
+			With(
+				"given_value", rawCheckDelay,
+				"default", defaultCheckDelay.String(),
+				"error", err,
+			).Warn("failed to parse the given value for CHECK_DELAY. Fallback to default")
 		delay = defaultCheckDelay
 	}
 	ret.CheckDelay = delay

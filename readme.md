@@ -79,7 +79,3 @@ export TRUENAS_API_KEY="<the token you copied above>"
 In case you want to run this in your Portainer or Dockage instance, you can use the already existing and up to date [docker image](https://hub.docker.com/r/yottta/truewatcher).
 
 > The timezone of the container can be configured by using the TZ environment variable.
-
-## TODOs:
-* Actually plug into the events, still have to figure out what is the privilege necessary to receive events
-  for a least-privileged token.
