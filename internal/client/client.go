@@ -85,7 +85,8 @@ func (c *Client) ping(cl *sdk.Client) bool {
 		slog.With("error", err).Error("failed to ping")
 		return false
 	}
-	slog.With("result", resp).Debug("ping result")
+	//slog.With("result", resp).Debug("ping result")
+	_ = resp
 	return true
 }
 
